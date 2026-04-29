@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Any, List
 
-async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_session=None) -> Decimal:
+async def calculate_monthly_revenue(property_id: str,tenant_id: str, month: int, year: int, db_session=None) -> Decimal:
     """
     Calculates revenue for a specific month.
     """
@@ -13,18 +13,26 @@ async def calculate_monthly_revenue(property_id: str, month: int, year: int, db_
     else:
         end_date = datetime(year + 1, 1, 1)
         
-    print(f"DEBUG: Querying revenue for {property_id} from {start_date} to {end_date}")
+    print(f"DEBUG: Querying revenue for {property_id}  from {start_date} to {end_date}")
 
     # SQL Simulation (This would be executed against the actual DB)
+    #query = """
+        #SELECT SUM(total_amount) as total
+        #FROM reservations 
+        #WHERE property_id = $1
+        #AND tenant_id = $2
+        #AND check_in_date >= $3
+        #AND check_in_date < $4
+    #"""
     query = """
         SELECT SUM(total_amount) as total
-        FROM reservations
-        WHERE property_id = $1
-        AND tenant_id = $2
-        AND check_in_date >= $3
-        AND check_in_date < $4
+        FROM reservations r
+        INNER JOIN properties p ON r.property_id = p.id
+        WHERE r.property_id = $1
+        AND p.tenant_id = $2  
+        AND r.check_in_date >= $3
+        AND r.check_in_date < $4
     """
-    
     # In production this query executes against a database session.
     # result = await db.fetch_val(query, property_id, tenant_id, start_date, end_date)
     # return result or Decimal('0')
@@ -90,15 +98,27 @@ async def calculate_total_revenue(property_id: str, tenant_id: str) -> Dict[str,
         
         # Create property-specific mock data for testing when DB is unavailable
         # This ensures each property shows different figures
-        mock_data = {
-            'prop-001': {'total': '1000.00', 'count': 3},
-            'prop-002': {'total': '4975.50', 'count': 4}, 
-            'prop-003': {'total': '6100.50', 'count': 2},
-            'prop-004': {'total': '1776.50', 'count': 4},
-            'prop-005': {'total': '3256.00', 'count': 3}
+        #mock_data = {
+            #'prop-001': {'total': '1000.00', 'count': 3},
+            #'prop-002': {'total': '4975.50', 'count': 4}, 
+            #'prop-003': {'total': '6100.50', 'count': 2},
+            #'prop-004': {'total': '1776.50', 'count': 4},
+            #'prop-005': {'total': '3256.00', 'count': 3}
+        #}
+        mock_data_by_tenant = {
+            'tenant-a': {  # Sunset Properties
+                'prop-001': {'total': '482.05', 'count': 12, 'currency': 'USD'},
+                'prop-002': {'total': '315.50', 'count': 8, 'currency': 'USD'},
+            },
+            'tenant-b': {  # Ocean Rentals
+                'prop-003': {'total': '670.50', 'count': 15, 'currency': 'USD'},
+                'prop-004': {'total': '450.04', 'count': 9, 'currency': 'USD'},
+                'prop-005': {'total': '283.01', 'count': 6, 'currency': 'USD'},
+            },
+            
         }
-        
-        mock_property_data = mock_data.get(property_id, {'total': '0.00', 'count': 0})
+        #mock_property_data = mock_data.get(property_id, {'total': '0.00', 'count': 0})
+        mock_property_data = mock_data_by_tenant.get(tenant_id, {}).get(property_id, {'total': '0.00', 'count': 0})
         
         return {
             "property_id": property_id,
